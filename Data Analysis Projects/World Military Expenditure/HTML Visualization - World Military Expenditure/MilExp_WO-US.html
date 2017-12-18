@@ -1,0 +1,65 @@
+<html>
+<head>
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['line']});
+      google.charts.setOnLoadCallback(drawChart);
+
+    function drawChart() {
+
+      var data = new google.visualization.DataTable();
+      data.addColumn('string', 'Year');
+      data.addColumn('number', 'China');
+      data.addColumn('number', 'France');
+      data.addColumn('number', 'United Kingdom');
+	  data.addColumn('number', 'Russia');
+	  data.addColumn('number', 'Germany');
+      data.addColumn('number', 'Japan');
+      data.addColumn('number', 'Saudi Arabia');
+      data.addColumn('number', 'Italy');
+	  data.addColumn('number', 'India');
+	  data.addColumn('number', 'South Korea');
+      data.addColumn('number', 'Brazil');
+
+      data.addRows([
+        ['1998',32715,61091,51485,19243,50248,46331,30704,38744,22737,21404,19194],
+        ['1999',39800,61607,51421,21370,51272,46084,27331,40263,26424,20831,19662],
+		['2000',43230,60897,52766,28838,50448,46315,30123,42956,27266,22111,21298],
+		['2001',52179,60711,54901,31171,49619,47156,32083,42250,28215,22743,24670],
+		['2002',60642,61963,58458,34530,49753,47576,28166,43406,28128,23370,24999],
+		['2003',65496,63826,62661,36200,49073,47435,28374,43758,28756,24165,19943],
+		['2004',72415,65573,63392,37847,47570,47245,31543,43897,33403,25226,20721],
+		['2005',79809,64235,63922,43010,46830,47155,38008,42227,35548,27283,22421],
+		['2006',92586,64525,64334,47601,45749,46558,43297,40867,35718,28266,23216],
+		['2007',103716,64773,66370,51814,45789,45954,49872,39600,36151,29546,25038],
+		['2008',113527,64124,69332,56933,47104,45515,48949,41049,41003,31479,26639],
+		['2009',137401,68451,70679,59730,48885,46364,50299,39897,48277,33458,29047],
+		['2010',144383,65322,69192,60940,49418,46527,52350,38772,48470,33730,32257],
+		['2011',155898,63725,66271,65040,48004,47161,53062,38047,48940,34201,31245],
+		['2012',169321,62844,63446,75364,49149,46584,60041,35342,48766,35070,31846]	
+		]);
+
+      var options = {
+        chart: {
+          title: 'Military Expenditure for Top 11 Spending Countries - USA xcluded',
+          subtitle: 'in ($US m.), records from 1998 to 2012'
+        },
+        width: 900,
+        height: 500,
+        axes: {
+          x: {
+            0: {side: 'bottom'}
+          }
+        }
+      };
+
+      var chart = new google.charts.Line(document.getElementById('line_top_x'));
+
+      chart.draw(data, options);
+    }
+  </script>
+</head>
+<body>
+  <div id="line_top_x"></div>
+</body>
+</html>

@@ -1,0 +1,36 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawVisualization);
+
+
+      function drawVisualization() {
+        // Some raw data (not necessarily accurate)
+        var data = google.visualization.arrayToDataTable([
+         ['Year',      'UK',        'France',     'Japan',     'Germany',   'Average'],
+         ['2007',      66370,        64773,        45954,          45789,      171761],
+         ['2008',      69332,        64124,        45515,          47104,      181808],
+         ['2009',      70679,        68451,        46364,          48885,      194425],
+         ['2010',      69192,        65322,        46527,          49418,      197690],
+		 ['2011',      66271,        63725,        47161,          48004,      194761]
+      ]);
+
+    var options = {
+      title : "Effect of Great Recession on the Top 4 Industrial Countries' Military Spending - Excluding US",
+      vAxis: {title: 'Military Expenditure ($US m.)'},
+      hAxis: {title: 'Year'},
+      seriesType: 'bars',
+      series: {4: {type: 'line'}}
+    };
+
+    var chart = new google.visualization.ComboChart(document.getElementById('chart_div'));
+    chart.draw(data, options);
+  }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div" style="width: 900px; height: 500px;"></div>
+  </body>
+</html>

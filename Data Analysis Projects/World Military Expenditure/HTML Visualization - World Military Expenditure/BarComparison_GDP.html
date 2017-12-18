@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['bar']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Country', '2014 GDP ($US m.)'],
+          ['USA',17348071],
+          ['China',10351111],
+          ['France',2829192],
+          ['UK',2990201],
+		  ['Russia',2030972],
+          ['Germany',3868291],
+          ['Japan',4596156],
+          ['Saudi Arabia',753831],        
+		  ['Italy',2138541],
+          ['India',2042439],
+          ['South Korea',1411334],
+          ['Brazil',2417046]
+		  ]);
+
+        var options = {
+          chart: {
+            title: 'Countries GDP ($US m.)',
+            subtitle: 'Top 12 countries, 2014 records',
+          },
+          bars: 'horizontal' // Required for Material Bar Charts.
+        };
+
+        var chart = new google.charts.Bar(document.getElementById('barchart_material'));
+
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="barchart_material" style="width: 900px; height: 500px;"></div>
+  </body>
+</html>

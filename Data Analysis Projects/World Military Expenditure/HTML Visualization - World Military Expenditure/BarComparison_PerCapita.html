@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['bar']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Country','Per Capita GDP', 'Per Capita Military Expenditure'],
+          ['USA',   	 54398,					1912 ],
+          ['China',  	 7587,					146  ],
+          ['France', 	 42546,					956  ],
+          ['UK',         46278,					915  ],
+		  ['Russia',     14121,					588  ],
+          ['Germany',    47767,					569  ],
+          ['Japan',      36152,					360  ],
+          ['S. Arabia',  24406,					2614 ],    
+		  ['Italy',		 35179,					519  ],
+          ['India', 	 1576,					39   ],
+          ['S. Korea',   27989,					739  ],
+          ['Brazil', 	 11728,					158  ]
+		  ]);
+
+        var options = {
+          chart: {
+            title: 'Per Capita Military Expenditure and GDP ($US)',
+            subtitle: 'Top 12 spending countries, 2014 records',
+          },
+          bars: 'horizontal' // Required for Material Bar Charts.
+        };
+
+        var chart = new google.charts.Bar(document.getElementById('barchart_material'));
+
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="barchart_material" style="width: 900px; height: 500px;"></div>
+  </body>
+</html>

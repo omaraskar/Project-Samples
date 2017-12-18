@@ -1,0 +1,41 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['bar']});
+      google.charts.setOnLoadCallback(drawChart);
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Country', '2014 Military Expenditure ($US m.)', '2014 GDP ($US m.)'],
+          ['USA', 609914,17348071],
+          ['China', 199651,10351111],
+          ['France', 63614,2829192],
+          ['UK', 59183,2990201],
+		  ['Russia', 84697,2030972],
+          ['Germany', 46103,3868291],
+          ['Japan', 45867,4596156],
+          ['S. Arabia', 80762,753831],        
+		  ['Italy', 31571,2138541],
+          ['India', 50914,2042439],
+          ['S. Korea', 37286,1411334],
+          ['Brazil', 32660,2417046]
+		  ]);
+
+        var options = {
+          chart: {
+            title: 'Military Spending to Countries GDP',
+            subtitle: 'Top 12 countries, 2014 records',
+          },
+          bars: 'horizontal' // Required for Material Bar Charts.
+        };
+
+        var chart = new google.charts.Bar(document.getElementById('barchart_material'));
+
+        chart.draw(data, options);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="barchart_material" style="width: 900px; height: 500px;"></div>
+  </body>
+</html>

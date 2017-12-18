@@ -1,0 +1,34 @@
+<html>
+  <head>
+    <script type="text/javascript" src="https://www.google.com/jsapi"></script>
+    <script type="text/javascript">
+      google.load("visualization", "1", {packages:["intensitymap"]});
+      google.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+        var data = google.visualization.arrayToDataTable([
+          ['Country',    'GDP/Capita ($US)', 'Military Spending/Capita ($US)'],
+		  ['US',				54398,					1912 ],
+		  ['CN',				7587,					146  ],
+		  ['FR',				42546,					956  ],
+		  ['GB',				46278,					915  ],
+		  ['RU',				14121,					588  ],
+		  ['DE',				47767,					569  ],
+		  ['JP',				36152,					360  ],
+		  ['SA',				24406,					2614 ],
+		  ['IT',				35179,					519  ],
+		  ['IN',				1576,					39   ],
+		  ['KR',				27989,					739  ],
+		  ['BR',				11728,					158  ]
+          ]);
+
+        var chart = new google.visualization.IntensityMap(document.getElementById('chart_div'));
+
+        chart.draw(data, {});
+      }
+    </script>
+  </head>
+  <body>
+    <div id="chart_div"></div>
+  </body>
+</html>
