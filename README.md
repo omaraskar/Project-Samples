@@ -1,4 +1,4 @@
-# Projects-Samples
+# Projects Samples
 
 - This repository contains sample of python codes
 - All python codes were written using ipython Notebook (.ipynb)
