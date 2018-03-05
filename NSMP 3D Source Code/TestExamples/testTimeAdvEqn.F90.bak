@@ -1,0 +1,583 @@
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww!
+!---------------------------------------------------------------------!
+!                      THE ADVECTION EQUATION                         !
+!                             Oct 2013                                !
+!---------------------------------------------------------------------!
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww!
+
+      SUBROUTINE testTimeAdvEqn(phiA,phivA,                      &  
+                                phi,xc,yc,sig,dsig,No_cp,nbe,    &
+                                phiv,xv,yv,sigv,dsigv,No_vp,nbev,&
+                                nRK)               
+!---------------------------------------------------------------------!
+!                                                                     !
+!    This program updates the Advection equation in each time step.   !
+!                      d(phi)/dt  +  ADV  = rhs                       ! 
+!                                                                     !
+!    We have four methods (chosen at file cppdefs.h) to solve the     !
+!    problem :                                                        !
+!                                                                     !
+!     1)  FullExplicit :  In this case the ADV term is calculated     !
+!                         at time (n), thus it's send it completly    !
+!                         in the rhs part.                            !
+!     2)  Explicit     :  In this case only the diagonal elements     !
+!                         of ADV are calculated at time (n+1).        !
+!     3)  SemiImplicit :  In this case the cell-center and neigh-     !
+!                         bors are calculated at time (n+1), the      !
+!                         gradient GF is calculated at (n). We can    !
+!                         choose between SOR or GMRES to solve the    !
+!                         linear system.                              !
+!     3)  Implicit     :  In this case the cell-center, neighbors     !
+!                         and the gradient GF are calculated at       !
+!                         time (n+1). The GMRES method is chosen      !
+!                         to solve the system.                        !     
+!                                                                     !
+!---------------------------------------------------------------------!
+!    Output  variables:                                               !
+!   _______________________________________________________________   !
+!  |     Name      |    Size     | Description                     |  !  
+!  |_______________|_____________|_________________________________|  !
+!  | <-- phiA      |(N_CELL,NZ)  | Approximate solution cell-center|  !
+!  | <-- phiE      |(N_CELL,NZ)  | Exact solution cell-center      |  !  
+!  | <-- Error     |(N_CELL,NZ)  | Error cell-center               |  !    
+!  | <-- phivA     |(N_VERT,NZ-1)| Approximate solution vertex     |  !
+!  | <-- phivE     |(N_VERT,NZ-1)| Exact solution vertex           |  ! 
+!  | <-- Errorv    |(N_VERT,NZ-1)| Error vertex                    |  !  
+!  |_______________|_____________|_________________________________|  !
+!                                                                     !
+!    Input variables:                                                 !
+!   _______________________________________________________________   !
+!  |     Name   |    Size     |  Description                       |  !  
+!  |____________|_____________|____________________________________|  !
+!  | --> phi    |(N_CELL,NZ)  | Old solution of the equation       |  !  
+!  | --> xc,yc  |(N_CELL)     | Coordinates of the cell centers    |  !
+!  | --> sig    |(NZ)         | Sigma value at the cell centers    |  !
+!  | --> dsig   |(NZ)         | Increment = sig(k+1)-sig(k)        |  !
+!  | --> No_cp  |(N_CELL,3)   | Numbering of surrounding 3 cells   |  !
+!  | --> nbe    |(N_CELL)     | Tag: Type of cell (inside or bc)   |  !
+!  |____________|_____________|____________________________________|  !
+!  | --> phiv   |(N_VERT,NZ-1)| Old solution of the equation       |  !  
+!  | --> xv,yv  |(N_VERT)     | Coordinates of the cell vertices   |  !
+!  | --> sigv   |(NZ-1)       | sigma of the vertex points         |  !
+!  | --> dsigv  |(NZ-1)       | Increment = sigv(k+1)-sigv(k)      |  !  
+!  | --> No_vp  |(N_CELL0,3)  | Numbering of the cell vertices     |  !
+!  | --> nbev   |(N_VERT)     | Tag: Type of vertex (inside or bc) |  !
+!  |____________|_____________|____________________________________|  !
+!                                                                     !
+!---------------------------------------------------------------------!
+
+!*********************************************************************!
+!                                                                     !
+!                           Definitions                               !
+!                                                                     !
+!*********************************************************************!
+!     ____________________________________
+!    |                                    |
+!    |     Keys and common parameters     |
+!    |____________________________________|
+
+#     include "cppdefs.h"
+!     ====================================
+!     ==========  SEQUENTIAL =============
+#     ifndef KeyParallel
+            USE geometry
+            implicit none
+#     endif
+!     ====================================
+!     =====  START PARALLEL OPTION =======
+#     ifdef KeyParallel
+            USE parallel
+            USE geometry
+            implicit none
+#     endif
+!     =============== END ================    
+!     ====================================  
+!     ____________________________________
+!    |                                    |
+!    |      Declaration of variables      |
+!    |____________________________________|
+
+      real*8,dimension(:,:) :: phiA(N_CELL,NZ)
+      real*8,dimension(:,:) :: phivA(N_VERT,NZ-1)
+!     --------------------------------------
+      real*8,dimension(:,:) :: phi(N_CELL,NZ)
+      real*8,dimension(:)   :: xc(N_CELL)
+      real*8,dimension(:)   :: yc(N_CELL)
+      real*8,dimension(:)   :: sig(NZ)
+      real*8,dimension(:)   :: dsig(NZ)
+      integer,dimension(:,:):: No_cp(N_CELL,3)
+      integer,dimension(:)  :: nbe(N_CELL0) 
+!     --------------------------------------
+      real*8,dimension(:,:) :: phiv(N_VERT,NZ-1) 
+      real*8,dimension(:)   :: xv(N_VERT)
+      real*8,dimension(:)   :: yv(N_VERT)
+      real*8,dimension(:)   :: sigv(NZ-1)
+      real*8,dimension(:)   :: dsigv(NZ-1)
+      integer,dimension(:,:):: No_vp(N_CELL0,3)
+      integer,dimension(:)  :: nbev(N_VERT)
+!     --------------------------------------
+      integer :: nRK
+!     ____________________________________
+!    |                                    |
+!    |   Declaration of local variables   |
+!    |____________________________________|
+
+      real*8,dimension(:) :: phiA2D(N_CELL)
+      real*8,dimension(:) :: phivA2D(N_VERT)
+      real*8,dimension(:) :: phi2D(N_CELL)
+      real*8,dimension(:) :: phiv2D(N_VERT) 
+!     ----------------------------------------
+      real*8,dimension(:) :: Am02D(N_CELL0)
+      real*8,dimension(:) :: Am12D(N_CELL0)
+      real*8,dimension(:) :: Am22D(N_CELL0)
+      real*8,dimension(:) :: Am32D(N_CELL0)
+      real*8,dimension(:) :: AmG2D(N_CELL0)
+      real*8,dimension(:) ::  bm2D(N_CELL0)  
+      real*8,dimension(:) ::  uu2D(N_CELL)
+      real*8,dimension(:) ::  vv2D(N_CELL)
+      real*8,dimension(:) :: rhs2D(N_CELL)
+!     ---------------------------------------- 
+      real*8,dimension(:,:) :: Am0(N_CELL0,NZ)
+      real*8,dimension(:,:) :: Am1(N_CELL0,NZ)
+      real*8,dimension(:,:) :: Am2(N_CELL0,NZ)
+      real*8,dimension(:,:) :: Am3(N_CELL0,NZ)
+      real*8,dimension(:,:) :: AmT(N_CELL0,NZ)
+      real*8,dimension(:,:) :: AmB(N_CELL0,NZ)
+      real*8,dimension(:,:) :: AmG(N_CELL0,NZ)
+      real*8,dimension(:,:) ::  bm(N_CELL0,NZ)
+      real*8,dimension(:,:) ::  uu(N_CELL,NZ) 
+      real*8,dimension(:,:) ::  vv(N_CELL,NZ) 
+      real*8,dimension(:,:) ::  ww(N_CELL,NZ) 
+      real*8,dimension(:,:) :: rhs(N_CELL,NZ)
+      real*8,dimension(:,:) :: aux(N_CELL,NZ)
+!     ----------------------------------------
+      real*8 :: dtoVol,const,Vol,som, drr, rlimit
+      integer:: jc1,jc2,jc3
+!     ----------------------------------------
+      integer,parameter :: ChooseSolver = 2
+!     ----------------------------------------
+
+!     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#     ifdef KeyDbg
+         write(*,'(t15,60a)'), '>>>>> Begin subroutine: TEST AdvEqn'
+#     endif
+!     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+!*********************************************************************!
+!                                                                     !
+!                       Advection approximation  2D                   !
+!                                                                     !
+!*********************************************************************!
+
+      IF (TestDimension.eq.2) THEN
+!        ________________________________________________________
+!        Previous solution 
+
+         do i=1,N_CELL
+            phi2D(i) = phi(i,2)  
+         enddo
+!         ________________________________________________________
+!        |                                                        |
+!        |               Components of the problem                |
+!        |________________________________________________________|
+
+         do i=1,N_CELL
+!           -----------------------------
+!           Velocity profile
+            uu2D(i) = 2.0d0*pi*(-yc(i)) 
+            vv2D(i) = 2.0d0*pi*( xc(i)) 
+            drr = dsqrt(xc(i)**2 + yc(i)**2)
+            rlimit = 0.9
+            if (drr .gt. rlimit) uu2D(i) = 0.0d0
+            if (drr .gt. rlimit) vv2D(i) = 0.0d0
+!           -----------------------------
+!           Right-hand side
+            rhs2D(i) = 0.0d0 
+         enddo
+!         ________________________________________________________
+!        |                                                        |
+!        |                 Advection contribution                 |
+!        |________________________________________________________|
+
+         do i=1,N_CELL0	
+            Am02D(i) = 0.0d0
+            Am12D(i) = 0.0d0
+            Am22D(i) = 0.0d0
+            Am32D(i) = 0.0d0
+            AmG2D(i) = 0.0d0 
+         enddo
+
+         call advection2D(Am02D,Am12D,Am22D,Am32D,AmG2D,   &
+                          uu2D,vv2D,                       &
+                          phi2D,xc,yc,No_cp,xv,yv,No_vp,nbe) 
+!         ________________________________________________________
+!        |                                                        |
+!        |                        Solution                        |
+!        |________________________________________________________|
+
+!        _________________________________________________________
+!        FullExplicit            
+
+#        ifdef KeyAdvFullExplicit
+!           ______________________
+!           Update inside values
+            do i=1,N_CELL0 	
+               jc1 = No_cp(i,1)
+               jc2 = No_cp(i,2)
+               jc3 = No_cp(i,3)
+               Vol = areaCell(i)
+!              -------------------
+!              New rhs
+               som =  Am02D(i)*phi2D(i)     &
+                    + Am12D(i)*phi2D(jc1)   &
+                    + Am22D(i)*phi2D(jc2)   &
+                    + Am32D(i)*phi2D(jc3)   &
+                    + AmG2D(i)
+               bm2D(i) = -som/Vol + rhs2D(i)
+!              -------------------
+!              Update
+               phiA2D(i) = phi2D(i)+dt*bm2D(i)
+            enddo
+!           ______________________
+!           Boundary conditions
+            call BCcellcenter2D(phiA2D,xc,yc,No_cp,nbe)
+#        endif
+
+!        _________________________________________________________
+!        Explicit 
+
+#        ifdef KeyAdvExplicit
+!           ______________________
+!           Update inside values
+            do i=1,N_CELL0 	
+               jc1 = No_cp(i,1)
+               jc2 = No_cp(i,2)
+               jc3 = No_cp(i,3)
+               Vol = areaCell(i)
+!              -------------------
+!              New diagonal values
+               Am02D(i)= 1.0d0 + dt/Vol*Am02D(i)
+!              -------------------
+!              New rhs
+               som =  Am12D(i)*phi2D(jc1)   &
+                    + Am22D(i)*phi2D(jc2)   &
+                    + Am32D(i)*phi2D(jc3)   &
+                    + AmG2D(i)
+               bm2D(i) = -som/Vol + rhs2D(i)
+!              -------------------
+!              Update
+               phiA2D(i) = (phi2D(i)+dt*bm2D(i))/Am02D(i)
+            enddo
+!           ______________________
+!           Boundary conditions
+            call BCcellcenter2D(phiA2D,xc,yc,No_cp,nbe)
+#        endif
+!        _________________________________________________________
+!        Semi-Implicit 
+
+#        ifdef KeyAdvSemiImplicit
+!           ______________________
+!           New Matrix & rhs
+            do i=1,N_CELL0 	
+               Vol = areaCell(i)
+               Am02D(i) = 1.0d0 + dt/Vol*Am02D(i)
+               Am12D(i) = dt/Vol*Am12D(i)
+               Am22D(i) = dt/Vol*Am22D(i)
+               Am32D(i) = dt/Vol*Am32D(i)
+               bm2D(i)  = phi2D(i)+dt*(-AmG2D(i)/Vol + rhs2D(i))
+            enddo
+!           ______________________
+!           Call the linear solver
+!           -------------------
+!           SOR
+            if (ChooseSolver.eq.1) then 
+            print*,'Function changed!! look for the orignal in old versions'
+            !    call solSOR2D(phi2D,                         &
+            !                  Am02D,Am12D,Am22D,Am32D,bm2D,  & 
+            !                  xc,yc,No_cp,nbe)
+!           -------------------
+!           GMRES
+            elseif (ChooseSolver.eq.2) then
+            print*,'Function changed!! look for the orignal in old versions'
+            !    call solGMRES2D(phi2D,                       &
+            !                  Am02D,Am12D,Am22D,Am32D,bm2D,  & 
+            !                  xc,yc,No_cp,nbe)
+            endif
+!           ______________________
+!           Update the solution
+            do i=1,N_CELL
+               phiA2D(i) = phi2D(i)
+            enddo
+#        endif
+
+!        _________________________________________________________
+!        Implicit by GMRES 
+
+#        ifdef KeyAdvImplicit
+!           ______________________
+!           New rhs
+            do i=1,N_CELL0 	
+               rhs2D(i)  = phi2D(i)+dt*rhs2D(i)
+            enddo
+!           ______________________
+!           Call the GMRES solver
+            call gmres2Dadvection(phi2D,rhs2D,uu2D,vv2D,  & 
+                                  xc,yc,No_cp,nbe) 
+!           ______________________
+!           Update the solution
+            do i=1,N_CELL0
+               phiA2D(i) = phi2D(i)
+            enddo
+#        endif
+!         ________________________________________________________
+!        |                                                        |
+!        |                     Final solution                     |
+!        |________________________________________________________|
+
+         do k=1,NZ 
+            do i=1,N_CELL
+               phiA(i,k) = phiA2D(i)
+            enddo
+         enddo
+
+!*********************************************************************!
+!                                                                     !
+!                       Advection approximation  3D                   !
+!                                                                     !
+!*********************************************************************!
+
+      ELSEIF (TestDimension.eq.3) THEN 
+
+!         ________________________________________________________
+!        |                                                        |
+!        |                     Velocity profile                   |
+!        |________________________________________________________|
+
+         do k=1,NZ
+            do i=1,N_CELL	    
+               const = (1.0d0/dsqrt(3.0d0))*2.0d0*pi
+               uu(i,k) = const*(-yc(i)+sig(k))
+               vv(i,k) = const*( xc(i)-sig(k)) 
+               ww(i,k) = const*(-xc(i)+yc(i))                  
+            enddo
+         enddo
+!         ________________________________________________________
+!        |                                                        |
+!        |                  Problem right-hand side               |
+!        |________________________________________________________|
+
+         do k=1,NZ
+            do i=1,N_CELL 
+               rhs(i,k) = 0.0d0 
+            enddo
+         enddo
+!         ________________________________________________________
+!        |                                                        |
+!        |                 Advection contribution                 |
+!        |________________________________________________________|
+
+         do k=1,NZ
+            do i=1,N_CELL0	
+               Am0(i,k) = 0.0d0
+               Am1(i,k) = 0.0d0
+               Am2(i,k) = 0.0d0
+               Am3(i,k) = 0.0d0
+               AmT(i,k) = 0.0d0
+               AmB(i,k) = 0.0d0
+               AmG(i,k)  = 0.0d0 
+           enddo
+         enddo
+
+         call advection3D(Am0,Am1,Am2,Am3,AmT,AmB,AmG,  &
+                          uu,vv,ww,                     &
+                          phi,xc,yc,sig,No_cp,nbe,      &  
+                          sigv,dsigv)
+!         ________________________________________________________
+!        |                                                        |
+!        |                       Solution                         |
+!        |________________________________________________________|
+
+!        _________________________________________________________
+!        FullExplicit            
+
+#        ifdef KeyAdvFullExplicit
+!           ______________________
+!           Update inside values
+            do k=2,NZ-1
+               do i=1,N_CELL0 	
+                  jc1 = No_cp(i,1)
+                  jc2 = No_cp(i,2)
+                  jc3 = No_cp(i,3)
+                  Vol = areaCell(i)*dsigv(k-1)
+!                 ----------------
+!                 New rhs
+                  som =  Am0(i,k)*phi(i,k)     &
+                       + Am1(i,k)*phi(jc1,k)   &
+                       + Am2(i,k)*phi(jc2,k)   &
+                       + Am3(i,k)*phi(jc3,k)   &
+                       + AmT(i,k)*phi(i,k+1)   &       
+                       + AmB(i,k)*phi(i,k-1)   &
+                       + AmG(i,k)    
+                  bm(i,k) = -som/Vol + rhs(i,k)
+!                 ----------------
+!                 Update
+                  phiA(i,k) = phi(i,k)+dt*bm(i,k)
+               enddo
+            enddo
+!           ______________________
+!           Boundary conditions
+            call BCcellcenter3D(phiA,xc,yc,sig,dsig,No_cp,nbe)
+#        endif
+!        _________________________________________________________
+!        Explicit  
+
+#        ifdef KeyAdvExplicit
+!           ______________________
+!           Update inside values
+            do k=2,NZ-1
+               do i=1,N_CELL0 	
+                  jc1 = No_cp(i,1)
+                  jc2 = No_cp(i,2)
+                  jc3 = No_cp(i,3)
+                  Vol = areaCell(i)*dsigv(k-1)
+!                 ----------------
+!                 New diagonal values
+                  Am0(i,k)= 1.0d0 + dt/Vol*Am0(i,k)
+!                 ----------------
+!                 New rhs
+                  som =  Am1(i,k)*phi(jc1,k)   &
+                       + Am2(i,k)*phi(jc2,k)   &
+                       + Am3(i,k)*phi(jc3,k)   &
+                       + AmT(i,k)*phi(i,k+1)   &       
+                       + AmB(i,k)*phi(i,k-1)   &
+                       + AmG(i,k)
+                  bm(i,k) = -som/Vol + rhs(i,k)
+!                 ----------------
+!                 Update
+                  phiA(i,k) = (phi(i,k)+dt*bm(i,k))/Am0(i,k)
+               enddo
+            enddo
+!           ______________________
+!           Boundary conditions
+            call BCcellcenter3D(phiA,xc,yc,sig,dsig,No_cp,nbe)
+#        endif
+!        _________________________________________________________
+!        Semi-Implicit  
+
+#        ifdef KeyAdvSemiImplicit
+!           ______________________
+!           New Matrix & rhs
+            do k=1,NZ
+               do i=1,N_CELL0 	
+                  Vol = areaCell(i)*dsigv(k-1)
+                  Am0(i,k)= 1.0d0 + dt/Vol*Am0(i,k)
+                  Am1(i,k) = dt/Vol*Am1(i,k)
+                  Am2(i,k) = dt/Vol*Am2(i,k)
+                  Am3(i,k) = dt/Vol*Am3(i,k)
+                  AmT(i,k) = dt/Vol*AmT(i,k)
+                  AmB(i,k) = dt/Vol*AmB(i,k)
+                  bm(i,k)  = phi(i,k) + dt*(-AmG(i,k)/Vol + rhs(i,k))
+               enddo
+            enddo
+!           ______________________
+!           Call the linear solver
+!           ---------------
+!           SOR
+            if (ChooseSolver.eq.1) then 
+            print*,'Function changed!! look for the orignal in old versions'
+            !    call solSOR3D(phi,                          &
+            !                  Am0,Am1,Am2,Am3,AmT,AmB,bm,   & 
+            !                  xc,yc,sig,dsig,No_cp,nbe)
+!           ---------------
+!           GMRES
+            elseif (ChooseSolver.eq.2) then
+            print*,'Function changed!! look for the orignal in old versions'
+            !    call solGMRES3D(phi,                         &
+            !                    Am0,Am1,Am2,Am3,AmT,AmB,bm,  & 
+            !                    xc,yc,sig,dsig,No_cp,nbe)
+            endif
+!           ______________________
+!           Final assignation
+            do k=1,NZ 
+               do i=1,N_CELL
+                  phiA(i,k) = phi(i,k)
+               enddo
+            enddo
+#        endif
+
+
+!        _________________________________________________________
+!        Implicit by GMRES 
+
+#        ifdef KeyAdvImplicit
+!           ______________________
+!           New rhs
+            do k=1,NZ 
+               do i=1,N_CELL0
+                  bm(i,k)  = phi(i,k) + dt*rhs(i,k)
+                  aux(i,k) = 0.0d0
+              enddo
+            enddo
+!           ______________________
+!           Call the GMRES solver
+            call gmres3DAdvDiff(phi,phiv,                    &
+                                bm,uu,vv,ww,aux,aux,aux,     & 
+                                xc,yc,sig,dsig,No_cp,nbe,    &
+                                xv,yv,sigv,dsigv,No_vp,nbev)
+!           ______________________
+!           Update the solution
+            do i=1,N_CELL
+               phiA(i) = phi(i)
+            enddo
+#        endif
+
+      ENDIF
+
+!*********************************************************************!
+!                                                                     !
+!                 Extra solution: Vertex Approximation                !
+!                                                                     !
+!*********************************************************************!
+
+!     __________________________________________________________
+!     2D
+      IF (TestDimension.eq.2) THEN
+         do i=1,N_CELL
+            phiA2D(i) = phiA(i,3)
+         enddo
+         call interpolation2D(phivA2D,xv,yv,No_vp,nbev, &
+                              phiA2D,xc,yc,No_cp,nbe)
+         do k=1,NZ-1  
+            do nv=1,N_VERT
+               phivA(nv,k) = phivA2D(nv)
+            enddo
+         enddo
+!     __________________________________________________________
+!     3D
+      ELSEIF (TestDimension.eq.3) THEN 
+         call interpolation3D(phivA,xv,yv,sigv,dsigv,No_vp,nbev,&
+                              phiA,xc,yc,sig,dsig,No_cp)
+
+      ENDIF
+
+!*********************************************************************!
+!                                                                     !
+!                           Finalization                              !
+!                                                                     !
+!*********************************************************************!
+
+!     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#     ifdef KeyDbg
+         write(*,'(t15,60a)'), '<<<<< End   subroutine: TEST AdvEqn'
+         write(*,*) ''
+#     endif
+!     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	         
+      RETURN
+      END
+
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww!
+!---------------------------------------------------------------------!
+!                      	   END OF testAdvection                       !
+!---------------------------------------------------------------------!
+!wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww!

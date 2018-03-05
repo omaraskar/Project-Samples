@@ -1,0 +1,371 @@
+#######################################################################
+#                                                                     #
+#                        MAKEFILE 3D: Sequential                      #
+#                      ---  Miguel Uh Zapata ---                      #
+#                                 2013                                #
+#                                                                     #
+#######################################################################
+#
+# .__________________________________________________________________.
+# |                                                                  |
+# |                     Declaration of extension                     |
+# |__________________________________________________________________|
+
+.SUFFIXES:.F90
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |                   Compiler and editor of links                   |
+# |__________________________________________________________________|
+# |                                                                  |
+# | Sequential:   FC  = gfortran                                     |
+# | # Compiler Fortran77         : xlf                               |
+# |                                                                  |
+# | Parallel:     FC  = mpif77                                       |
+# | # Compiler Fortran77 + OpenMP: xlf_r / OPAR = -qsmp=omp / KeyOMP |
+# |__________________________________________________________________|
+
+FC         = gfortran
+FLD        = $(FC)
+RM         = /bin/rm -f
+MV         = mv
+
+#######################################################################
+#                            COMPILATION                              #
+#######################################################################
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Optimization options                                      |
+# |                                                                  |
+# |  Joe    : OLEV  = -qhot -O3 -qtune=auto -qarch=auto -qcache=auto |
+# |  Power4 : OLEV  = -qhot -O3 -qtune=pwr4 -qarch=pwr4              |
+# |  Power5 : OLEV  = -qhot -O3 -qtune=pwr5 -qarch=pwr5              |
+# |__________________________________________________________________|
+
+OLEV       = 
+FOPT       = -qstrict 
+FOPT       =  
+FMAX       = -qipa 
+FMAX       = 
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Parallelization options: OpenMP                           |
+# |__________________________________________________________________|
+
+OPAR       = -qsmp=omp
+OPAR       = 
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Debugging options                                         |
+# |__________________________________________________________________|
+
+ODEB       = -qnooptimize 
+FDEB       = -qcheck -qdbg  \
+#            -qflttrap=:ov:und:zero:inv:en \
+             -qinitauto=FF \
+	     -qhalt=l 
+#            -qextchk  
+#            -qfullpath
+#            -qundef : implicit none
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Portage options                                           |
+# |__________________________________________________________________|
+
+OPRT       = -qautodbl=dbl4 -qdpc=e 
+OPRT       =
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Inputs/outputs options of the compiler                    |
+# |__________________________________________________________________|
+
+OES        = -qfixed=132 -qsuffix=f=f 
+OES        =
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |         Listing options                                          |
+# |                                                                  |
+# |  Sequential:  OLST   = -qlistopt -qreport=hotlist -qsource       |
+# |  OpenMP    :  OLST   = -qlistopt -qreport=smplist -qsource       |
+# |__________________________________________________________________|
+
+OLST       = -qlistopt -qreport=hotlist -qsource 
+OLST       =
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Profile options                                           |
+# |__________________________________________________________________|
+
+PROF       = -pg -qfullpath -qdbg 
+PROF       = 
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        COMPILATION:                                              |
+# |                                                                  |
+# |        optimize:                                                 |
+# |                 FFLAGS =  -fdefault-real-8 -std=f95 \            |
+# |                           $(OLEV) $(FOPT) $(FMAX) $(OPAR)\       | 
+# |                           $(OPRT) $(PROF) $(OES) $(OLST)         |
+# |        debug:                                                    |
+# |                 FFLAGS =  $(ODEB)$(FDEB) $(FMAX) $(OPAR)\        |
+# |                           $(OPRT) $(PROF) $(OES) $(OLST)         |
+# |__________________________________________________________________|  
+
+
+FFLAGS = $(OLEV) $(FOPT) $(FMAX) $(OPAR) $(OPRT) $(PROF) $(OES) $(OLST)
+
+
+#######################################################################
+#                         EDITION OF LINKS                            #
+#######################################################################
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Include Paths:                                            |
+# |        CRIHAN                                                    |
+# |        INC       = -I/soft/library/netCDF.32/include/            |
+# |        GNU                                                       |
+# |__________________________________________________________________|  
+
+INC       = 
+#-I /usr/include/
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |       Fortran libraries                                          |
+# |__________________________________________________________________|  
+
+LIBS      = -lmass -lmassv -lessl -lm /soft/library/netCDF.32/lib/libnetcdf.a
+LIBS      = -lm /usr/lib/libblas.so  -lm /usr/lib/libnetcdf.a
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |       Optimization option                                        |
+# |__________________________________________________________________|  
+
+LDLEV     = $(OLEV)
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Portage options                                           |
+# |__________________________________________________________________|
+
+LDREN     = -brename:.flush,.flush_ -brename:.etime,.etime_ -brename:.lnblnk,.lnblnk_
+LDREN     = -brename:.etime,.etime_ -brename:.lnblnk,.lnblnk_
+LDREN     = -pedantic -std=std
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Memory options                                            |
+# |__________________________________________________________________|
+
+LDMEM     = -bmaxdata:0x80000000 -blpdata
+LDMEM     = -blpdata
+LDMEM     = 
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Edition of links options                                  |
+# |__________________________________________________________________|
+
+LDFLAGS   = $(LDLEV) $(LDMEM) $(OPAR) $(LDREN) $(PROF)
+
+
+#######################################################################
+#                         Fortran includes                            #
+#######################################################################
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Fortran includes                                          |
+# |__________________________________________________________________|
+
+FHDRS      = \
+             common.mpf
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Directories: object, source & input                       |
+# |__________________________________________________________________|
+
+
+OBJDIR    = bin
+SRCDIR    = src
+INPUTDIR  = input
+VPATH     = ${SRCDIR}:\
+            ${SRCDIR}/Main:\
+            ${SRCDIR}/AdvectionDiffusion:\
+            ${SRCDIR}/BoundaryConditions:\
+            ${SRCDIR}/LinearSolver:\
+            ${SRCDIR}/Interpolation:\
+            ${SRCDIR}/Gradient:\
+            ${SRCDIR}/LoopUpdate:\
+            ${SRCDIR}/TestExamples:\
+            ${SRCDIR}/FreeSurface:\
+            ${SRCDIR}/Save:
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Objects Fortran                                           |
+# |__________________________________________________________________|
+
+FOBJS = \
+	${OBJDIR}/module_variables.o\
+	${OBJDIR}/module_interfaces.o\
+        ${OBJDIR}/module_geometry.o\
+	${OBJDIR}/nsmp3D.o\
+	${OBJDIR}/hydro.o\
+	${OBJDIR}/input.o\
+	${OBJDIR}/input_parameters.o\
+	${OBJDIR}/calcul_geometry.o\
+	${OBJDIR}/initial.o\
+	${OBJDIR}/restart_in.o\
+	${OBJDIR}/restart_out.o\
+	${OBJDIR}/SavetecVertex.o\
+	${OBJDIR}/SavetecCenter.o\
+	${OBJDIR}/SavetecVertexCenter.o\
+	${OBJDIR}/SavetecEdge.o\
+	${OBJDIR}/LoopTimeInitial.o\
+	${OBJDIR}/LoopTimeUpdate.o\
+	${OBJDIR}/LoopRKInitial.o\
+	${OBJDIR}/LoopRKUpdate.o\
+	${OBJDIR}/LoopRKFinal.o\
+	${OBJDIR}/interpolation2D.o\
+	${OBJDIR}/interpolation3D.o\
+	${OBJDIR}/interpolationEta.o\
+	${OBJDIR}/gradientLSM.o\
+	${OBJDIR}/gradientLSM2D.o\
+	${OBJDIR}/gradientGGF.o\
+	${OBJDIR}/gradientEdge2D.o\
+	${OBJDIR}/gradientEdge3DReg1.o\
+	${OBJDIR}/gradientEdge3DReg2.o\
+	${OBJDIR}/solvesystem.o\
+	${OBJDIR}/gmres2D.o\
+	${OBJDIR}/gmres2Dcc.o\
+	${OBJDIR}/gmres2Dadvection.o\
+	${OBJDIR}/gmres2DAdvDiff.o\
+	${OBJDIR}/gmres3D.o\
+	${OBJDIR}/gmres3Dcc.o\
+	${OBJDIR}/gmres3Dccvelocity.o\
+	${OBJDIR}/gmres3DAdvDiff.o\
+	${OBJDIR}/sor2D.o\
+	${OBJDIR}/sor3D.o\
+	${OBJDIR}/sior3D.o\
+	${OBJDIR}/sor3Dcc.o\
+	${OBJDIR}/sor3Dccvelocity.o\
+	${OBJDIR}/PseudoSOR2D.o\
+	${OBJDIR}/PseudoSOR3D.o\
+	${OBJDIR}/advection2D.o\
+	${OBJDIR}/advection3D.o\
+	${OBJDIR}/diffusion2D.o\
+	${OBJDIR}/diffusion3D.o\
+	${OBJDIR}/AdvDiffEqn2D.o\
+	${OBJDIR}/AdvDiffEqn3D.o\
+	${OBJDIR}/AdvDiffVelocity.o\
+	${OBJDIR}/Poisson.o\
+	${OBJDIR}/BCpressure.o\
+	${OBJDIR}/BCvelocity.o\
+	${OBJDIR}/BCcellcenter2D.o\
+	${OBJDIR}/BCcellcenter3D.o\
+	${OBJDIR}/BCVertex2D.o\
+	${OBJDIR}/BCVertex3D.o\
+	${OBJDIR}/boundaryCondition.o\
+	${OBJDIR}/Functions.o\
+	${OBJDIR}/testExamples.o\
+	${OBJDIR}/testTimeExamples.o\
+	${OBJDIR}/testGradientLSM.o\
+	${OBJDIR}/testEdgeValues.o\
+	${OBJDIR}/testAdvection.o\
+	${OBJDIR}/testGradientEdge.o\
+	${OBJDIR}/testInterpolation.o\
+	${OBJDIR}/testDiffusion.o\
+	${OBJDIR}/testPoisson.o\
+	${OBJDIR}/testTimeInitial.o\
+	${OBJDIR}/testTimeError.o\
+	${OBJDIR}/testTimeAdvEqn.o\
+	${OBJDIR}/testTimeDiffEqn.o\
+	${OBJDIR}/testTimeAdvDiffEqn.o\
+	${OBJDIR}/testTimeNSEqn.o\
+	${OBJDIR}/testCPUnsmp3D.o\
+	${OBJDIR}/FreeSurface.o\
+	${OBJDIR}/FS_testTimeEqn.o\
+	${OBJDIR}/FS_testTimeInitial.o\
+	${OBJDIR}/FS_testTimeError.o\
+	${OBJDIR}/FS_AdvDiff.o\
+	${OBJDIR}/FS_Advection.o\
+	${OBJDIR}/FS_Poisson.o\
+	${OBJDIR}/FS_BCeta.o\
+	${OBJDIR}/FS_BCvelocity.o\
+	${OBJDIR}/FS_BCpressure.o\
+	${OBJDIR}/FS_Functions.o\
+
+# .__________________________________________________________________.
+# |                                                                  |	
+# |        Sources Fortran                                           |
+# |__________________________________________________________________|
+
+INC_COMMON = -I ${SRCDIR}/Include
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Compilation Fortran                                       |
+# |                                                                  |
+# |        Pour faire sortir les fichiers pre-compile avec cpp       |
+# |        au lieu de les effacer ajouter -d apres $(FC)             |
+# |__________________________________________________________________|
+
+
+${OBJDIR}/%.o:  %.F90
+	$(FC) $(FFLAGS) $(INC) $(INC_COMMON) -o $@ -c $<
+
+
+#######################################################################
+#                         FINAL COMPILATION                           #
+#######################################################################
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Link Fortran                                              |
+# |__________________________________________________________________|
+
+EXEC  = nsmp3D
+EXECE = nsmp3D.exe
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |       Destination work directory                                 |
+# |__________________________________________________________________|
+
+DEST = ~/Bureau/nsmp3DMPI/input
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |        Compilation                                               |
+# |__________________________________________________________________|
+
+all: 	   $(FOBJS)
+	   $(FLD) $(LDFLAGS) $(FOBJS) $(LIBS) -o $(EXEC)
+	   $(MV) $(EXEC) $(DEST)
+
+# .__________________________________________________________________.
+# |                                                                  |
+# |                            Cleaning                              |
+# |__________________________________________________________________|
+
+clean:    
+	   $(RM) $(FOBJS) $(EXEC) *.mod 
+
+#######################################################################
+#                                                                     #
+#                               END                                   #
+#                                                                     #
+#######################################################################
+
